@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: market-data-redis
+    command: redis-server --appendonly yes --appendfsync everysec
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: market-data-backend
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      - REDIS_ADDR=redis:6379
+      - FEED_URL=wss://v3-prod.livefxhub.com/ws/algo
+      - FEED_API_KEY=${FEED_API_KEY}
+      - FEED_SECRET=${FEED_SECRET}
+      - PORT=8080
+      - BATCH_INTERVAL=20ms
+      - OUT_OF_ORDER_BUFFER=50ms
+      - SIMULATE_FALLBACK=true
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: market-data-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  redis_data:

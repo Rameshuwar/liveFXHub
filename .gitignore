@@ -1,0 +1,8 @@
+.env
+*.log
+bin/
+node_modules/
+dist/
+*.exe
+.DS_Store
+coverage.out
